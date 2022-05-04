@@ -2,7 +2,6 @@ package com.miscrew.aednow;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
@@ -16,9 +15,7 @@ import androidx.core.content.ContextCompat;
 import android.Manifest;
 import android.app.ProgressDialog;
 import android.content.ContentValues;
-import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -45,17 +42,13 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.gson.Gson;
 
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Vector;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.UUID;
 
 public class AddActivity extends AppCompatActivity {
-    private static final String[] CAMERA_PERMISSION = new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE};
-    private static final int CAMERA_REQUEST_CODE = 10;
-    Vector<String> filePaths = new Vector<>();
-    Vector<String> uploadPaths = new Vector<>();
+    ArrayList<String> filePaths = new ArrayList<>();
+    ArrayList<String> uploadPaths = new ArrayList<>();
     GoogleSignInAccount account;
     FirebaseDatabase database;
     FirebaseStorage storage;
@@ -77,20 +70,18 @@ public class AddActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add);
         account = GoogleSignIn.getLastSignedInAccount(this);
-        Bundle extras = getIntent().getExtras();
-        if (extras == null || account == null) { // no account or lat or lng so why are we here?
-            onBackPressed();
-        }
         // get all firebase references
         database = FirebaseDatabase.getInstance();
         storage = FirebaseStorage.getInstance();
         auth = FirebaseAuth.getInstance();
         user = auth.getCurrentUser();
         storageReference = storage.getReference();
-        if(user == null) {
+        Bundle extras = getIntent().getExtras();
+        if (extras == null || account == null || user == null) { // pre-emptive account/data check
             onBackPressed();
         }
-        configureToolbar();
+
+        Utils.configureToolbar(this, "Add AED location");
         edtLatitude = findViewById(R.id.edtLatitude);
         edtLongitude = findViewById(R.id.edtLongitude);
         edtNotes = findViewById(R.id.edtNotes);
@@ -100,9 +91,9 @@ public class AddActivity extends AppCompatActivity {
         img3 = findViewById(R.id.imageCap3);
         preView = findViewById(R.id.cameraView);
         initCamera();
-        setClickListener(img1);
-        setClickListener(img2);
-        setClickListener(img3);
+        setSSClickListener(img1);
+        setSSClickListener(img2);
+        setSSClickListener(img3);
         Gson gson = new Gson();
         coords = gson.fromJson(getIntent().getStringExtra("coords"), LatLng.class);
         edtLatitude.setText(Double.toString(coords.latitude));
@@ -124,24 +115,24 @@ public class AddActivity extends AppCompatActivity {
     }
 
     private void doSubmit () {
-        HashMap<String, Object> AEDData = new HashMap<>();
-        AEDData.put("email", account.getEmail());
-        AEDData.put("username", account.getDisplayName());
-        AEDData.put("pos", coords);
-        System.out.println(uploadPaths.size());
-        int counter=1;
-        for (String url: uploadPaths ) {
-            System.out.println(url);
-            AEDData.put("imageUrl" + counter, url);
-            counter++;
-        }
-        AEDData.put("notes", edtNotes.getText().toString());
-        String refx = account.getDisplayName();
-        //Double.toString(coords.latitude) + ":" + Double.toString(coords.latitude);
+
+        // create mapper from textbox data
+        MapData m = new MapData("x", edtNotes.getText().toString(), coords.latitude, coords.longitude);
+        m.setImages(uploadPaths);
+        m.setVotes(0);
+        // create dao object
+        AEDDAO db = new AEDDAO();
+        db.mapdata = m;
+        db.email = account.getEmail();
+        db.username = account.getDisplayName();
         DatabaseReference dbRef = database.getReference();
-        dbRef.child("AEDLocRequest")
-                .child(refx)
-                .setValue(AEDData)
+        // database name
+        String locName = "AEDLocRequests";
+        // entry name
+        String entryName = account.getDisplayName();
+        dbRef.child(locName)
+                .child(entryName)
+                .setValue(db)
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void unused) {
@@ -150,7 +141,7 @@ public class AddActivity extends AppCompatActivity {
                                     @Override
                                     public void onDismissed(Snackbar snackbar, int event) {
                                         super.onDismissed(snackbar, event);
-                                        //onBackPressed();
+                                        onBackPressed();
                                     }
                                 }).show();
                     }
@@ -168,32 +159,34 @@ public class AddActivity extends AppCompatActivity {
                                 }).show();
                     }
                 });
-        //myRef.setValue("Test database read");
     }
 
 
-    private void setClickListener (ImageView img) {
+    // method to set click listener for dynamically-generated ImageViews
+    private void setSSClickListener (ImageView img) {
         img.setOnLongClickListener(view -> {
-            savePhoto();
+            savePhoto(img);
             takePhoto();
             imgCap = img;
+            // if you want to turn off the click listener, uncomment this
             //unsetClickListener(img);
             return true;
         });
     }
 
+    // method to unset click listener for dynamically-generated ImageViews
     private void unsetClickListener (ImageView img) {
         img.setOnLongClickListener(null);
     }
 
-    // toolbar creation
+    // menu creation, unused atm
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
         //getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
 
+    // action menu
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
@@ -206,27 +199,18 @@ public class AddActivity extends AppCompatActivity {
         return true;
     }
 
-    private Toolbar configureToolbar() {
-        // create toolbar
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        toolbar.setTitle("Add AED location");
-        setSupportActionBar(toolbar);
-        getSupportActionBar().setHomeButtonEnabled(true);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setDisplayShowHomeEnabled(true);
-        return toolbar;
-    }
-
-
+    // initialize Camera, calls startCameraX
     private void initCamera() {
         cameraProviderFuture = ProcessCameraProvider.getInstance(this);
         cameraProviderFuture.addListener(() -> {
             try {
-                if (hasPermission(Manifest.permission.CAMERA) && hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) && hasPermission(Manifest.permission.READ_EXTERNAL_STORAGE)) {
+                if (Utils.hasPermission(this, Manifest.permission.CAMERA)
+                        && Utils.hasPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        && Utils.hasPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)) {
                     ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
                     startCameraX(cameraProvider);
                 } else {
-                    requestPermission(CAMERA_PERMISSION, CAMERA_REQUEST_CODE);
+                    requestPermission(Utils.CAMERA_PERMISSION, Utils.CAMERA_REQUEST_CODE);
                 }
             } catch (ExecutionException e) {
                 e.printStackTrace();
@@ -236,16 +220,17 @@ public class AddActivity extends AppCompatActivity {
         }, ContextCompat.getMainExecutor(this));
     }
 
+    // method to initialize cameraX
     private void startCameraX(ProcessCameraProvider cameraProvider) {
         cameraProvider.unbindAll();
         CameraSelector cameraSelector = new CameraSelector.Builder()
-                .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+                .requireLensFacing(Utils.CAMERA_LENS)
                 .build();
         Preview preview = new Preview.Builder().build();
         preview.setSurfaceProvider(preView.getSurfaceProvider());
 
         imgCapture = new ImageCapture.Builder()
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .setCaptureMode(Utils.CAMERA_QUALITY)
                 .build();
         cameraProvider.bindToLifecycle(this, cameraSelector, preview, imgCapture);
     }
@@ -255,7 +240,7 @@ public class AddActivity extends AppCompatActivity {
         imgCapture.takePicture(ContextCompat.getMainExecutor(this), new ImageCapture.OnImageCapturedCallback() {
             @Override
             public void onCaptureSuccess(@NonNull ImageProxy imageProxy) {
-                capturedImg = getBitmap(imageProxy);
+                capturedImg = Utils.getBitmap(imageProxy);
                 imgCap.setImageBitmap(capturedImg);
                 imageProxy.close();
                 System.out.println("Image successfully captured.");
@@ -269,7 +254,7 @@ public class AddActivity extends AppCompatActivity {
         });
     }
 
-    private void savePhoto() {
+    private void savePhoto(ImageView img) {
         long timestamp = System.currentTimeMillis();
 
         ContentValues contentValues = new ContentValues();
@@ -287,12 +272,13 @@ public class AddActivity extends AppCompatActivity {
                     public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
                         Snackbar.make(findViewById(R.id.AddCoordinator), "Photo saved successfully at  " + outputFileResults.getSavedUri(), Snackbar.LENGTH_SHORT).show();
                         System.out.println("Photo saved successfully at" + outputFileResults.getSavedUri());
-                        filePaths.add(outputFileResults.getSavedUri().toString());
+                        String fp = outputFileResults.getSavedUri().toString();
+                        filePaths.add(fp);
+                        img.setOnClickListener(view -> {
+                            new Utils(AddActivity.this).showPhoto(Uri.parse(fp));
+                        });
                         // content://media/external/images/media/87
-                        // load image into imgCap here
                     }
-
-
                     @Override
                     public void onError(@NonNull ImageCaptureException exception) {
                         Snackbar.make(findViewById(R.id.AddCoordinator), "Error saving photo" + exception.getMessage(), Snackbar.LENGTH_SHORT).show();
@@ -302,12 +288,6 @@ public class AddActivity extends AppCompatActivity {
 
     }
 
-    private boolean hasPermission(String permission) {
-        return ContextCompat.checkSelfPermission(
-                this,
-                permission
-        ) == PackageManager.PERMISSION_GRANTED;
-    }
 
     private void requestPermission(String[] permission, int permissionCode) {
         ActivityCompat.requestPermissions(
@@ -317,14 +297,6 @@ public class AddActivity extends AppCompatActivity {
         );
     }
 
-    private Bitmap getBitmap(ImageProxy image) {
-        ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-        buffer.rewind();
-        byte[] bytes = new byte[buffer.capacity()];
-        buffer.get(bytes);
-        byte[] clonedBytes = bytes.clone();
-        return BitmapFactory.decodeByteArray(clonedBytes, 0, clonedBytes.length);
-    }
 
 
     // UploadImage method

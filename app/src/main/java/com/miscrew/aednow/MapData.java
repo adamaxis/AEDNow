@@ -1,42 +1,49 @@
 package com.miscrew.aednow;
 
-import com.google.android.gms.maps.model.Marker;
-import com.google.gson.annotations.Expose;
-import com.google.gson.annotations.SerializedName;
-
 import java.util.ArrayList;
 
 public class MapData {
 
+    // marker ID
     private String marker;
     private String title;
-    private String[] images;
+    private String snippet;
+    private ArrayList<String> images;
     private double lat;
     private double lng;
     private int votes;
     private int icon;
-    //@SerializedName("description")
-    //@Expose
-    private String description;
 
-    public MapData(String title, double lat, double lng, int icon, String description, String markerId) {
+    public MapData(String title, String snippet, double lat, double lng, int icon, String markerId) {
         this.title = title;
         this.lat = lat;
         this.lng = lng;
         this.icon = icon;
-        this.description = description;
+        this.snippet = snippet;
         this.marker = markerId;
     }
 
-    public MapData(String title, double lat, double lng, int icon, String description) {
+    public MapData(String title, String snippet, double lat, double lng, int icon) {
         this.title = title;
         this.lat = lat;
         this.lng = lng;
         this.icon = icon;
-        this.description = description;
+        this.snippet = snippet;
         this.marker = null;
     }
 
+    public MapData(String title, String snippet, double lat, double lng) {
+        this.title = title;
+        this.lat = lat;
+        this.lng = lng;
+        this.icon = 0;
+        this.snippet = snippet;
+        this.marker = null;
+    }
+
+    public MapData() {
+
+    }
 
 
     // setters and getters
@@ -48,29 +55,25 @@ public class MapData {
         this.title = title;
     }
 
-    public String[] getImages() {
+    public ArrayList<String> getImages() {
         return images;
     }
 
-    public void setImgUrl1(String []images) {
+    public void setImages(ArrayList<String> images) {
         this.images = images;
     }
 
-    public String getDescription() {
-        return description;
+    public String getSnippet() {
+        return snippet;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
+    public void setSnippet(String snippet) { this.snippet = snippet; }
 
     public double getLat() {
         return lat;
     }
 
-    public void setLat(long lat) {
-        this.lat = lat;
-    }
+    public void setLat(long lat) { this.lat = lat; }
 
     public double getLng() {
         return lng;

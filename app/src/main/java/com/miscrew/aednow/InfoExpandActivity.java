@@ -2,46 +2,40 @@ package com.miscrew.aednow;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
-import androidx.camera.view.PreviewView;
 
-import android.annotation.SuppressLint;
-import android.app.ActionBar;
-import android.content.Context;
-import android.icu.text.IDNA;
-import android.media.Image;
+import android.net.Uri;
 import android.os.Bundle;
-import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
-import android.widget.PopupWindow;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.material.snackbar.Snackbar;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
 import com.google.gson.Gson;
 import com.squareup.picasso.Picasso;
 
-import java.util.HashMap;
-
 public class InfoExpandActivity extends AppCompatActivity {
     FirebaseDatabase database;
-
-    EditText edtLatitude;
-    EditText edtLongitude;
-    EditText edtNotes;
+    FirebaseStorage storage;
+    FirebaseUser user;
+    FirebaseAuth auth;
+    StorageReference storageReference;
+    EditText edtLatitude, edtLongitude, edtTitle, edtSnippet;
+    ImageView imgUpvote, imgDownvote;
     ViewGroup layoutImages;
     Button btnSubmit;
 
@@ -50,114 +44,45 @@ public class InfoExpandActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_info_expand);
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
+        // get all firebase references
+        database = FirebaseDatabase.getInstance();
+        storage = FirebaseStorage.getInstance();
+        auth = FirebaseAuth.getInstance();
+        user = auth.getCurrentUser();
+        storageReference = storage.getReference();
         Bundle extras = getIntent().getExtras();
         if (extras == null || account == null) { // no account or lat or lng so why are we here?
             onBackPressed();
         }
-        configureToolbar();
+        Utils.configureToolbar(this, "AED info");
+        edtTitle = findViewById(R.id.edtTitle);
+        edtSnippet = findViewById(R.id.edtSnippet);
         edtLatitude =  findViewById(R.id.edtLatitude);
         edtLongitude = findViewById(R.id.edtLongitude);
-        edtNotes = findViewById(R.id.edtNotes);
-        //btnSubmit = findViewById(R.id.btnSubmit);
+        imgUpvote = findViewById(R.id.imgUpvote);
+        imgDownvote = findViewById(R.id.imgDownvote);
+
         Gson gson = new Gson();
         MapData ob = gson.fromJson(getIntent().getStringExtra("mapdata"), MapData.class);
-        database = FirebaseDatabase.getInstance();
-
+        edtTitle.setText(ob.getTitle());
+        edtSnippet.setText(ob.getSnippet());
+        edtLatitude.setText(Double.toString(ob.getLat()));
+        edtLongitude.setText(Double.toString(ob.getLng()));
         ViewGroup layoutImages = findViewById(R.id.layoutImages);
+
         for(String imgUrl: ob.getImages()) {
             ImageView imgView = new ImageView(getApplicationContext());
             imgView.setLayoutParams(new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 400));
             imgView.setEnabled(true);
-            loadImage(imgView, imgUrl);
-            imgView.setOnLongClickListener(view -> {
-                imageExpand(imgView);
-                return true;
+            Utils.loadImage(imgView, imgUrl);
+            imgView.setOnClickListener(view -> {
+                new Utils(InfoExpandActivity.this).showPhoto(Uri.parse(imgUrl));
             });
             layoutImages.addView(imgView);
         }
-        edtLatitude.setText(Double.toString(ob.getLat()));
-        edtLongitude.setText(Double.toString(ob.getLng()));
-
-
-        /*btnSubmit.setOnClickListener(view -> {
-            if(account!=null) {
-                btnSubmit.setEnabled(false);
-                View current = getCurrentFocus();
-                if (current != null) current.clearFocus();
-                HashMap<String, Object> AEDData = new HashMap<>();
-                AEDData.put("email", account.getEmail());
-                AEDData.put("username", account.getDisplayName());
-                AEDData.put("md", ob);
-                AEDData.put("notes", edtNotes.getText().toString());
-                String refx = account.getDisplayName();
-                //Double.toString(coords.latitude) + ":" + Double.toString(coords.latitude);
-                DatabaseReference dbRef = database.getReference();
-                dbRef.child("AEDLocRequest")
-                        .child(refx)
-                        .setValue(AEDData)
-                        .addOnSuccessListener(new OnSuccessListener<Void>() {
-                            @Override
-                            public void onSuccess(Void unused) {
-                                Snackbar.make(findViewById(R.id.InfoExpandCoordinator), "Data write successful", Snackbar.LENGTH_SHORT)
-                                        .addCallback(new Snackbar.Callback() {
-                                            @Override
-                                            public void onDismissed(Snackbar snackbar, int event) {
-                                                super.onDismissed(snackbar, event);
-                                                onBackPressed();
-                                            }
-                                        }).show();
-                            }
-                        })
-                        .addOnFailureListener(new OnFailureListener() {
-                            @Override
-                            public void onFailure(@NonNull Exception e) {
-                                Snackbar.make(findViewById(R.id.InfoExpandCoordinator), "Data write failed", Snackbar.LENGTH_SHORT)
-                                        .addCallback(new Snackbar.Callback() {
-                                            @Override
-                                            public void onDismissed(Snackbar snackbar, int event) {
-                                                super.onDismissed(snackbar, event);
-                                                onBackPressed();
-                                            }
-                                        }).show();
-                            }
-                        });
-                //myRef.setValue("Test database read");
-            }
-        });*/
-
     }
 
-    @SuppressLint("ResourceType")
-    private void imageExpand(ImageView src) {
-        System.out.println("IMAGEVIEW");
-        LayoutInflater inflater = (LayoutInflater) InfoExpandActivity.this
-                .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        View vs  = inflater.inflate(R.layout.layout_fullscreen_image, (ViewGroup)findViewById(R.id.layoutImages), false);
-        // create the popup window
-        int width = FrameLayout.LayoutParams.WRAP_CONTENT;
-        int height = FrameLayout.LayoutParams.WRAP_CONTENT;
-        final PopupWindow popupWindow = new PopupWindow(vs, width, height, true);
-
-        ImageView ss = vs.findViewById(R.id.imgFs);
-        ss.setImageDrawable(src.getDrawable());
-        popupWindow.showAtLocation(src, Gravity.TOP, 0, 0);
-        // dismiss the popup window when touched
-        vs.setOnClickListener((view) -> {
-            popupWindow.dismiss();
-            //return true;
-        });
-
-    }
-
-    private void loadImage(ImageView img, String url) {
-        if(url.length() == 0) return;
-        Picasso.get()
-                .load(url)
-                .placeholder(R.mipmap.ic_launcher)
-                .into(img);
-    }
-
-    // toolbar creation
+    // for custom menu, currently unused
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -165,6 +90,8 @@ public class InfoExpandActivity extends AppCompatActivity {
         return true;
     }
 
+
+    // options menu
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
@@ -175,17 +102,6 @@ public class InfoExpandActivity extends AppCompatActivity {
                 return true;
         }
         return true;
-    }
-
-    private Toolbar configureToolbar() {
-        // create toolbar
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        toolbar.setTitle("AED Info");
-        setSupportActionBar(toolbar);
-        getSupportActionBar().setHomeButtonEnabled(true);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setDisplayShowHomeEnabled(true);
-        return toolbar;
     }
 
 

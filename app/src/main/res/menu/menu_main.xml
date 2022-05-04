@@ -1,13 +1,17 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
+        android:id="@+id/menu_aedrequests"
+        android:icon="@mipmap/ic_checkmark"
+        android:title="AED Requests"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/menu_login"
-        android:icon="@drawable/common_google_signin_btn_icon_dark_focused"
+        android:icon="@mipmap/ic_login"
         android:title="Sign In"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="always" />
     <item
         android:id="@+id/menu_preferences"
         android:title="Preferences"
         app:showAsAction="never" />
-
 </menu>

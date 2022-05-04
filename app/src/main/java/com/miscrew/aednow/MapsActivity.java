@@ -3,9 +3,11 @@ package com.miscrew.aednow;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.view.menu.ActionMenuItemView;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -18,7 +20,6 @@ import android.widget.Button;
 import android.widget.Toast;
 
 
-import com.google.android.gms.auth.api.identity.SignInCredential;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -28,8 +29,6 @@ import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -41,22 +40,17 @@ import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
 import com.google.gson.*;
 import com.miscrew.aednow.databinding.ActivityMapsBinding;
-import com.squareup.picasso.Picasso;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.util.HashMap;
 
 
-public class MapsActivity extends AppCompatActivity implements /*GoogleMap.OnMarkerClickListener,*/ OnMapReadyCallback, GoogleMap.OnMapLongClickListener {
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleMap.OnMapLongClickListener {
 
-    private static GoogleSignInAccount account;
+    public static GoogleSignInAccount account;
     private GoogleMap mMap;
     GoogleSignInClient gsc;
     FirebaseAuth mAuth;
@@ -65,6 +59,8 @@ public class MapsActivity extends AppCompatActivity implements /*GoogleMap.OnMar
     public Mapper md;
     public Marker marker;
     private ActivityMapsBinding binding;
+    private int signInIcon = R.mipmap.ic_login;
+    private int signOutIcon = R.mipmap.ic_logout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,7 +69,7 @@ public class MapsActivity extends AppCompatActivity implements /*GoogleMap.OnMar
         binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        configureToolbar();
+        Utils.configureToolbar(this, "AEDNow", false);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -86,32 +82,25 @@ public class MapsActivity extends AppCompatActivity implements /*GoogleMap.OnMar
                 .requestIdToken(getApplicationContext().getString(R.string.default_web_client_id))
                 .build();
         gsc = GoogleSignIn.getClient(this, gso);
-        // btnSignIn = (SignInButton) findViewById(R.id.google_sign_in);
-        btnSignOut = (Button) findViewById(R.id.google_sign_out);
         account = GoogleSignIn.getLastSignedInAccount(this);
-        changeButtonText();
-        btnSignOut.setOnClickListener(view -> {
-            if(account==null) {
-                SignIn();
-            } else {
-                SignOut();
-            }
-        });
-
+        changeLoginText();
     }
 
 
     // change button text to reflect sign-in status
-    private void changeButtonText() {
+    @SuppressLint("RestrictedApi")
+    private void changeLoginText() {
         //account = GoogleSignIn.getLastSignedInAccount(this);
-        if(!isLoggedIn()) {
-            btnSignOut.setText("Sign in via Google");
+        ActionMenuItemView item = findViewById(R.id.menu_login);
+        if (!isLoggedIn()) {
+            if (item != null) item.setIcon(getDrawable(signInIcon));
         } else {
             Snackbar.make(findViewById(R.id.MapsCoordinator), "Successfully signed in as user " + account.getDisplayName() + ".", Snackbar.LENGTH_SHORT).show();
-            btnSignOut.setText("Sign Out");
+            if (item != null) item.setIcon(getDrawable(signOutIcon));
         }
     }
 
+    // check sign-in status
     public Boolean isLoggedIn() {
         account = GoogleSignIn.getLastSignedInAccount(this);
         return (account != null);
@@ -123,7 +112,8 @@ public class MapsActivity extends AppCompatActivity implements /*GoogleMap.OnMar
             @Override
             public void onComplete(@NonNull Task<Void> task) {
                 mAuth.signOut();
-                changeButtonText();
+                Snackbar.make(findViewById(R.id.MapsCoordinator), "Successfully signed out.", Snackbar.LENGTH_SHORT).show();
+                changeLoginText();
             }
         });
     }
@@ -138,14 +128,14 @@ public class MapsActivity extends AppCompatActivity implements /*GoogleMap.OnMar
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        switch(requestCode) {
+        switch (requestCode) {
             case 100:
-                Task<GoogleSignInAccount> task=GoogleSignIn.getSignedInAccountFromIntent(data);
+                Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
                 try {
                     account = task.getResult(ApiException.class);
-                    System.out.println(account.getIdToken());
+                    // firebase login
                     firebaseAuthWithGoogle(account.getIdToken());
-                    changeButtonText();
+                    changeLoginText();
                 } catch (ApiException e) {
                     Snackbar.make(findViewById(R.id.MapsCoordinator), "Error signing in", Snackbar.LENGTH_SHORT).show();
                 }
@@ -172,8 +162,6 @@ public class MapsActivity extends AppCompatActivity implements /*GoogleMap.OnMar
     // end sign in code
 
 
-
-
     // toolbar creation
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -188,13 +176,19 @@ public class MapsActivity extends AppCompatActivity implements /*GoogleMap.OnMar
 
         switch (id) {
             case R.id.menu_login:
-                onBackPressed();
-                return true;
-
-            case R.id.menu_preferences:
-                //Start Activity here
-                Intent mIntent = new Intent(this, HomeActivity.class);
+                if (account == null) {
+                    SignIn();
+                } else {
+                    SignOut();
+                }
+                break;
+            case R.id.menu_aedrequests:
+                Intent mIntent = new Intent(this, AdminActivity.class);
                 startActivity(mIntent);
+                break;
+            case R.id.menu_preferences:
+                Intent mIntent2 = new Intent(this, PreferencesActivity.class);
+                startActivity(mIntent2);
                 break;
         }
         return true;
@@ -223,29 +217,6 @@ public class MapsActivity extends AppCompatActivity implements /*GoogleMap.OnMar
         mMap.setOnInfoWindowLongClickListener(infoWin);
     }
 
-
-
-    /*
-    @Override
-    public boolean onMarkerClick(final Marker marker) {
-
-        // Retrieve the data from the marker.
-        Integer clickCount = (Integer) marker.getTag();
-
-        // Check if a click count was set, then display the click count.
-        if (clickCount != null) {
-            clickCount = clickCount + 1;
-            marker.setTag(clickCount);
-            Toast.makeText(this,
-                    marker.getTitle() +
-                            " has been clicked " + clickCount + " times.",
-                    Toast.LENGTH_SHORT).show();
-        }
-
-        // Return false for default behavior
-        return false;
-    }*/
-
     private void readJSONMap() {
         // create Gson instance for JSON read
         Gson gson = new Gson();
@@ -255,15 +226,13 @@ public class MapsActivity extends AppCompatActivity implements /*GoogleMap.OnMar
             // read JSON map location data from file into our mapper class
             md = gson.fromJson(reader, Mapper.class);
 
-            for(MapData x: md.mapData) {
-            //for(int y=0; y < md.mapData.size(); y++) {
-                //MapData x = md.mapData.get(y);
+            for (MapData x : md.mapData) {
                 // create a new location marker for each entry
                 LatLng marker = new LatLng(x.getLat(), x.getLng());
                 // set lat+lng+title+description+icon
                 MarkerOptions moMarker = new MarkerOptions();
                 // load marker info
-                moMarker.position(marker).title(x.getTitle()).snippet(x.getDescription());
+                moMarker.position(marker).title(x.getTitle()).snippet(x.getSnippet());
 
                 // load custom icon if specified
                 if (x.getIcon() != 0) // null check
@@ -282,20 +251,20 @@ public class MapsActivity extends AppCompatActivity implements /*GoogleMap.OnMar
             // close file
             reader.close();
         } catch (Exception ex) {
-            System.out.println("Error reading JSON file");
             Toast.makeText(this, "Error reading map markers from JSON file", Toast.LENGTH_SHORT).show();
             // print exception to logcat
             ex.printStackTrace();
         }
     }
 
+
+    // create bitmap from vector image
     private BitmapDescriptor BitmapFromVector(Context context, int vectorResId) {
         // below line is use to generate a drawable.
         Drawable vectorDrawable = ContextCompat.getDrawable(context, vectorResId);
 
         // below line is use to set bounds to our vector drawable.
         vectorDrawable.setBounds(0, 0, vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight());
-
         // below line is use to create a bitmap for our
         // drawable which we have added.
         Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
@@ -308,33 +277,17 @@ public class MapsActivity extends AppCompatActivity implements /*GoogleMap.OnMar
         return BitmapDescriptorFactory.fromBitmap(bitmap);
     }
 
+    // long click: add marker if logged in; show latlng if not logged in
     @Override
     public void onMapLongClick(@NonNull LatLng latLng) {
-        if(isLoggedIn()) {
+        if (isLoggedIn()) {
             Intent mIntent = new Intent(this, AddActivity.class);
             Gson gson = new Gson();
             String json = gson.toJson(latLng);
             mIntent.putExtra("coords", json);
             startActivity(mIntent);
-        } else Toast.makeText(this, "Lat Lng: " + latLng.latitude + "x" + latLng.longitude, Toast.LENGTH_SHORT).show();
+        } else
+            Toast.makeText(this, "Lat Lng: " + latLng.latitude + "x" + latLng.longitude, Toast.LENGTH_SHORT).show();
 
-    }
-
-   /*private String LoadIcon(Context context, String path) {
-        ImageView imgv = new ImageView(context);
-        Picasso.get().load("").into(imgv);
-        imgv.to
-    }*/
-
-    private Toolbar configureToolbar() {
-        // create toolbar
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        toolbar.setTitle("AEDNow");
-        //getSupportActionBar().setTitle("ADENow")
-        setSupportActionBar(toolbar);
-        getSupportActionBar().setHomeButtonEnabled(true);
-        //getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        //getSupportActionBar().setDisplayShowHomeEnabled(true);
-        return toolbar;
     }
 }

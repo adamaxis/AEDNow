@@ -19,7 +19,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
-public class HomeActivity extends AppCompatActivity {
+public class PreferencesActivity extends AppCompatActivity {
 
     TextView txtName, txtEmail;
     Button btnLogout, btnRevoke;
@@ -29,7 +29,7 @@ public class HomeActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_home);
+        setContentView(R.layout.activity_preferences);
         configureToolbar();
         txtName = findViewById(R.id.name);
         txtEmail = findViewById(R.id.email);
@@ -47,6 +47,7 @@ public class HomeActivity extends AppCompatActivity {
            @Override
            public void onClick(View view) {
                SignOut();
+               startActivity(new Intent(getApplicationContext(), MapsActivity.class));
            }
         });
 
@@ -75,7 +76,7 @@ public class HomeActivity extends AppCompatActivity {
                     public void onComplete(@NonNull Task<Void> task) {
                         finish();
                         SignOut();
-                        onBackPressed();
+                        startActivity(new Intent(getApplicationContext(), MapsActivity.class));
                     }
                 });
     }
@@ -99,7 +100,7 @@ public class HomeActivity extends AppCompatActivity {
 
             case R.id.menu_preferences:
                 //Start Activity here
-                Intent mIntent = new Intent(this, HomeActivity.class);
+                Intent mIntent = new Intent(this, PreferencesActivity.class);
                 startActivity(mIntent);
                 break;
         }

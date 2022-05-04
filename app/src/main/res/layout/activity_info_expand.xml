@@ -10,7 +10,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
     <ScrollView
-        xmlns:android="http://schemas.android.com/apk/res/android"
         android:layout_height="wrap_content"
         android:layout_marginTop="?attr/actionBarSize"
         android:layout_width="match_parent">
@@ -20,6 +19,46 @@
         android:orientation="vertical"
         android:fitsSystemWindows="true"
         tools:context=".InfoExpandActivity">
+
+        <ImageView
+            android:id="@+id/imgUpvote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:srcCompat="@mipmap/ic_upvote" />
+
+        <ImageView
+            android:id="@+id/imgDownvote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:srcCompat="@mipmap/ic_downvote" />
+
+        <TextView
+            android:id="@+id/txtTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Title for AED Location:"
+            android:textSize="20sp" />
+
+        <EditText
+            android:id="@+id/edtTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:inputType="textMultiLine" />
+        <TextView
+            android:id="@+id/txtSnippet"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Snippet(description of AED) location:"
+            android:textSize="20sp" />
+
+        <EditText
+            android:id="@+id/edtSnippet"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:inputType="textMultiLine" />
+
         <TextView
             android:id="@+id/txtLatitude"
             android:layout_width="match_parent"
@@ -49,20 +88,6 @@
             android:ems="10"
             android:enabled="false"
             android:inputType="numberDecimal" />
-
-        <TextView
-            android:id="@+id/txtNotes"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Notes or comments:"
-            android:textSize="20sp" />
-
-        <EditText
-            android:id="@+id/edtNotes"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:enabled="true"
-            android:inputType="textMultiLine" />
         <LinearLayout
             android:id="@+id/layoutImages"
             android:layout_width="fill_parent"

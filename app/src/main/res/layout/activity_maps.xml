@@ -32,19 +32,5 @@
         tools:context=".MapsActivity" />
 
 
-    <com.google.android.gms.common.SignInButton
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:id="@+id/google_sign_in"/>
-
-    <Button
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Sign In"
-        android:background="@color/white"
-        android:textColor="@color/black"
-        android:id="@+id/google_sign_out" />
-
 </LinearLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
